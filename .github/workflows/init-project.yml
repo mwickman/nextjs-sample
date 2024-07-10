@@ -106,15 +106,7 @@ jobs:
 
           main() {
             setCluster
-            createOutput=$(backoffretry "kubectl create secret docker-registry regcred --docker-server=\"${DOCKER_SERVER}\" --docker-username=\"${DOCKER_USERNAME}\" --docker-password=\"${DOCKER_PASSWORD}\" --dry-run=client -o yaml | kubectl apply -f - ")
-            echo "$createOutput"
-
-            # Check if the output contains the string 'created'
-            if echo "$createOutput" | grep -q 'created'; then
-              echo "The output contains the string 'created', might indicate a problem as we expect updated, retrying."
-              sleep 10 # sleep while the error is resolving on the servers
-              backoffretry "kubectl create secret docker-registry regcred --docker-server=\"${DOCKER_SERVER}\" --docker-username=\"${DOCKER_USERNAME}\" --docker-password=\"${DOCKER_PASSWORD}\" --dry-run=client -o yaml | kubectl apply -f - "
-            fi
+            kubectl create secret docker-registry regcred --docker-server=\"${DOCKER_SERVER}\" --docker-username=\"${DOCKER_USERNAME}\" --docker-password=\"${DOCKER_PASSWORD}\" --dry-run=client -o yaml | kubectl apply -f - 
 
             deploymentOutput=$(envsubst '$FULL_IMAGE_WITH_TAG $POD_NAME' < ${GITHUB_WORKSPACE}/k8s/deploy.yaml | kubectl apply -f - )
             echo "$deploymentOutput"
