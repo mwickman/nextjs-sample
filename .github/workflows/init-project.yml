@@ -106,15 +106,17 @@ jobs:
 
           main() {
             setCluster
+            # attempt at using the backoffretry function made the secret format incorrect
+            # carefully test before using that strategy again
             kubectl create secret docker-registry regcred --docker-server="${DOCKER_SERVER}" --docker-username="${DOCKER_USERNAME}" --docker-password="${DOCKER_PASSWORD}" --dry-run=client -o yaml | kubectl apply -f -
-            
-            deploymentOutput=$(envsubst '$FULL_IMAGE_WITH_TAG $POD_NAME' < ${GITHUB_WORKSPACE}/k8s/deploy.yaml | kubectl apply -f - )
+
+            deploymentOutput=$(backoffretry "envsubst '$FULL_IMAGE_WITH_TAG $POD_NAME' < ${GITHUB_WORKSPACE}/k8s/deploy.yaml | kubectl apply -f - ")
             echo "$deploymentOutput"
             # Check if the output contains the string 'created'
             if echo "$deploymentOutput" | grep -q 'created'; then
               echo "The deployment output contains the string 'created', might indicate a problem as we expect updated, retrying."
               sleep 10 # sleep while the error is resolving on the servers
-              backoffretry "kubectl create secret docker-registry regcred --docker-server=\"${DOCKER_SERVER}\" --docker-username=\"${DOCKER_USERNAME}\" --docker-password=\"${DOCKER_PASSWORD}\" --dry-run=client -o yaml | kubectl apply -f - "
+              backoffretry "envsubst '$FULL_IMAGE_WITH_TAG $POD_NAME' < ${GITHUB_WORKSPACE}/k8s/deploy.yaml | kubectl apply -f -"
             fi
 
             ingressOutput=$(backoffretry "kubectl apply -f ${GITHUB_WORKSPACE}/k8s/ingress-upstream.yaml")
@@ -123,7 +125,7 @@ jobs:
             if echo "$ingressOutput" | grep -q 'created'; then
               echo "The deployment output contains the string 'created', might indicate a problem as we expect updated, retrying."
               sleep 10 # sleep while the error is resolving on the servers
-              backoffretry "kubectl create secret docker-registry regcred --docker-server=\"${DOCKER_SERVER}\" --docker-username=\"${DOCKER_USERNAME}\" --docker-password=\"${DOCKER_PASSWORD}\" --dry-run=client -o yaml | kubectl apply -f - "
+              backoffretry "kubectl apply -f ${GITHUB_WORKSPACE}/k8s/ingress-upstream.yaml"
             fi
             backoffretry "kubectl rollout restart deployment \"section-project-deployment\""
           }
